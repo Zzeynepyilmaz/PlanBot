@@ -1,5 +1,6 @@
 package com.example.planbot.presentation.home
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -25,27 +26,45 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.planbot.data.weather.WeatherRepository
 import com.example.planbot.domain.GetSuggestionsUseCase
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
+@SuppressLint("MissingPermission")
 @Composable
 fun HomeScreen() {
     var showSuggestions by remember { mutableStateOf(false) }
-
     val useCase = remember { GetSuggestionsUseCase() }
     val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
 
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val fusedLocationClient = remember {
+        LocationServices.getFusedLocationProviderClient(context)
+    }
 
     var weather by remember { mutableStateOf("sunny") }
 
-    // Hava durumunu al
     LaunchedEffect(Unit) {
-        val repo = WeatherRepository("API_KEY")
-        weather = repo.getCurrentWeather("Istanbul")
+        try {
+            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                location?.let {
+                    val repo = WeatherRepository("API_KEY")
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val result = repo.getCurrentWeatherByLocation(it.latitude, it.longitude)
+                        withContext(Dispatchers.Main) {
+                            weather = result
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
-    // weather değeri güncellendikten sonra suggestions listesi hazırlanır
     val suggestions = remember(weather) {
         useCase.execute(hour, weather)
     }
