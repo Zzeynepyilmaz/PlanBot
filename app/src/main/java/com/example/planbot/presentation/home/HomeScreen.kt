@@ -20,10 +20,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.planbot.domain.GetSuggestionsUseCase
+import java.util.Calendar
 
 @Composable
 fun HomeScreen() {
     var showSuggestions by remember { mutableStateOf(false) }
+    val useCase = remember { GetSuggestionsUseCase() }
+    val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    val suggestions = useCase.execute(hour, "sunny") // Şimdilik hava durumu sabit
 
     Column(
         modifier = Modifier
@@ -43,9 +48,7 @@ fun HomeScreen() {
         Spacer(modifier = Modifier.height(24.dp))
 
         if (showSuggestions) {
-            SuggestionCard("Film izle")
-            SuggestionCard("Yürüyüşe çık")
-            SuggestionCard("Kahve iç")
+            suggestions.forEach { SuggestionCard(it) }
         }
     }
 }
