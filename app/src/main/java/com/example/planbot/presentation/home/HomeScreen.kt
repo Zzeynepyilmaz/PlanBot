@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,6 +47,9 @@ fun HomeScreen() {
     var weather by remember { mutableStateOf("sunny") }
     var gptSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
 
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) {
         try {
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
@@ -69,7 +73,14 @@ fun HomeScreen() {
             val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val gptService = GPTSuggestionService("GPT_API_KEY")
             val prompt = "Saat şu an $hour ve hava $weather. Canı sıkılan birine 3 öneri ver."
-            gptSuggestions = gptService.getSuggestions(prompt)
+            try {
+                val result = gptService.getSuggestions(prompt)
+                gptSuggestions = result
+            } catch (e: Exception) {
+                errorMessage = "Öneri alınamadı, lütfen daha sonra tekrar deneyin."
+            } finally {
+                isLoading = false
+            }
         }
     }
 
@@ -85,14 +96,34 @@ fun HomeScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = { showSuggestions = true }) {
+        Button(onClick = {
+            showSuggestions = true
+            isLoading = true
+            errorMessage = null
+        }) {
             Text("Canım sıkılıyor")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         if (showSuggestions) {
-            gptSuggestions.forEach { SuggestionCard(it) }
+            when {
+                isLoading -> {
+                    CircularProgressIndicator()
+                }
+
+                errorMessage != null -> {
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                gptSuggestions.isNotEmpty() -> {
+                    gptSuggestions.forEach { SuggestionCard(it) }
+                }
+            }
         }
     }
 }
