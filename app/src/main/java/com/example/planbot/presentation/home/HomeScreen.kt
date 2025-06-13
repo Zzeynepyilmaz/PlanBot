@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.planbot.data.gpt.GPTSuggestionService
 import com.example.planbot.data.weather.WeatherRepository
 import com.example.planbot.domain.GetSuggestionsUseCase
 import com.google.android.gms.location.LocationServices
@@ -37,15 +38,13 @@ import java.util.Calendar
 @Composable
 fun HomeScreen() {
     var showSuggestions by remember { mutableStateOf(false) }
-    val useCase = remember { GetSuggestionsUseCase() }
-    val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
-
     val context = LocalContext.current
     val fusedLocationClient = remember {
         LocationServices.getFusedLocationProviderClient(context)
     }
 
     var weather by remember { mutableStateOf("sunny") }
+    var gptSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
 
     LaunchedEffect(Unit) {
         try {
@@ -65,10 +64,16 @@ fun HomeScreen() {
         }
     }
 
-    val suggestions = remember(weather) {
-        useCase.execute(hour, weather)
+    LaunchedEffect(showSuggestions) {
+        if (showSuggestions) {
+            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            val gptService = GPTSuggestionService("GPT_API_KEY")
+            val prompt = "Saat şu an $hour ve hava $weather. Canı sıkılan birine 3 öneri ver."
+            gptSuggestions = gptService.getSuggestions(prompt)
+        }
     }
 
+    // UI
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -87,7 +92,7 @@ fun HomeScreen() {
         Spacer(modifier = Modifier.height(24.dp))
 
         if (showSuggestions) {
-            suggestions.forEach { SuggestionCard(it) }
+            gptSuggestions.forEach { SuggestionCard(it) }
         }
     }
 }
