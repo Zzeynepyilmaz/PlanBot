@@ -13,22 +13,42 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.planbot.data.weather.WeatherRepository
 import com.example.planbot.domain.GetSuggestionsUseCase
 import java.util.Calendar
 
 @Composable
 fun HomeScreen() {
     var showSuggestions by remember { mutableStateOf(false) }
+
     val useCase = remember { GetSuggestionsUseCase() }
     val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
-    val suggestions = useCase.execute(hour, "sunny") // Şimdilik hava durumu sabit
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var weather by remember { mutableStateOf("sunny") }
+
+    // Hava durumunu al
+    LaunchedEffect(Unit) {
+        val repo = WeatherRepository("API_KEY")
+        weather = repo.getCurrentWeather("Istanbul")
+    }
+
+    // weather değeri güncellendikten sonra suggestions listesi hazırlanır
+    val suggestions = remember(weather) {
+        useCase.execute(hour, weather)
+    }
 
     Column(
         modifier = Modifier
